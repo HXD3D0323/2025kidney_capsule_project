@@ -140,8 +140,8 @@ col_expr <- colorRamp2(c(min(na.omit(plot.data)),1,max(na.omit(plot.data))), hea
 # do plot
 hm = Heatmap(plot.data, cell_fun = cell_fun(ECM_label),
 			 col = col_expr,rect_gp = gpar(col = "grey80"),
-             cluster_rows = F, cluster_columns = F,column_names_rot = 0, #肿瘤类型呈45度
-             width = unit(4, "cm"), height = unit(7.5, "cm"), name  = "R[o/e]", # 热图颜色图例的名称
+             cluster_rows = F, cluster_columns = F,column_names_rot = 0,
+             width = unit(4, "cm"), height = unit(7.5, "cm"), name  = "R[o/e]", 
              show_heatmap_legend = T)
 #lgd = Legend(labels = names(cols), title = expression(R[o/e]), legend_gp = gpar(fill = cols))
 draw(hm)
@@ -294,13 +294,95 @@ p <- ggplot(data, aes(x=Cell, y=Mean, fill=Cell)) +
 ggsave("02.Region_Normal_Proportion.pdf", plot=p, device="pdf", width=5.5, height=4.5)
 
 
-##--- figure S1F
+##--- figure S1H
+#install.packages("ggplot2")
+#install.packages("dplyr")
+#install.packages("plyr")
+library(ggplot2)
+library(dplyr)
+library(plyr)
+setwd("F:/23.肾包膜项目/54.蛋白组学的差异/5.蛋白组做主成分分析")
+
+expr_df <- read.csv(file='easy_input_expr.csv',row.names = 1, 
+                    header = TRUE, sep=",", stringsAsFactors = FALSE)
+ECM <-	read.table(file='F:/23.肾包膜项目/54.蛋白组学的差异/1.Limma做差异/校正后的差异/ECM_diff_DESeq2_used.xls',sep="\t",row.names = 1, 
+                    header = TRUE)				
+meta_df <- read.csv(file='easy_input_meta.csv', row.names = 1,
+                    header = TRUE, sep=",",stringsAsFactors = FALSE)
+expr_df[1:3,1:4]
+expr_df<-expr_df[,rownames(ECM)]
+head(meta_df, n=3)
+pca.results <- prcomp(expr_df, center = TRUE, scale. = FALSE)
+
+mycol <- c("#223D6C","#D20A13","#088247","#FFD121","#11AA4D","#58CDD9","#7A142C","#5D90BA","#431A3D","#91612D","#6E568C","#E0367A","#D8D155","#64495D","#7CC767")
+	
+pca.rotation <- pca.results$rotation
+pca.rotation
+pca.pv <- summary(pca.results)$importance[2,]
+pca.pv
+low_dim_df <- as.data.frame(pca.results$x[,c(1,2)])
+low_dim_df$group <- meta_df$group
+low_dim_df[1:3,]
+add_ellipase <- function(p, x="PC1", y="PC2", group="group",
+                         ellipase_pro = 0.95,
+                         linetype="dashed",
+                         colour = "black",
+                         lwd = 2,...){
+  obs <- p$data[,c(x, y, group)]
+  colnames(obs) <- c("x", "y", "group")
+  ellipse_pro <- ellipase_pro
+  theta <- c(seq(-pi, pi, length = 50), seq(pi, -pi, length = 50))
+  circle <- cbind(cos(theta), sin(theta))
+  ell <- ddply(obs, 'group', function(x) {
+    if(nrow(x) <= 2) {
+      return(NULL)
+    }
+    sigma <- var(cbind(x$x, x$y))
+    mu <- c(mean(x$x), mean(x$y))
+    ed <- sqrt(qchisq(ellipse_pro, df = 2))
+    data.frame(sweep(circle %*% chol(sigma) * ed, 2, mu, FUN = '+'))
+    })
+  names(ell)[2:3] <- c('x', 'y')
+  
+  ell <- ddply(ell, .(group) , function(x) x[chull(x$x, x$y), ])
+  p <- p + geom_polygon(data = ell, aes(x=x,y=y,group = group), 
+                   colour = colour,
+                   alpha = 1,fill = NA,
+                   linetype=linetype,
+                   lwd =lwd)
+  return(p)
+}
+pc1.pv <- paste0(round(pca.pv['PC1'],digits = 3) * 100, "%")
+pc2.pv <- paste0(round(pca.pv['PC2'],digits = 3) * 100, "%")
+
+p <- ggplot(low_dim_df) + 
+  geom_point(aes(x=PC1, y=PC2, color=group), size=2, #点的大小
+             shape=20,
+             alpha=0.5) +
+  scale_color_manual(values = mycol[1:length(unique(meta_df$group))]) +
+  #scale_colour_hue(l=45) + 
+  theme_bw() +
+  theme(panel.grid =element_blank()) + 
+  annotate("text",x=(-1.5e+07),y=-1.2,label = "Capsule",color = mycol[1]) +
+  annotate("text",x=1.35e+07,y=5.6,label = "Tumor",color = mycol[2]) +
+  #annotate("text",x=5,y=-2.5,label = "OV",color = mycol[3]) +
+  guides(color=guide_legend(title = NULL)) +
+  theme(legend.background = element_blank(), 
+        legend.position = c(0,1),legend.justification = c(0,1),
+        legend.text = element_text(size=12)) + #字体大小
+  xlab(paste0("PC1 ( ", pc1.pv," variance )")) + 
+  ylab(paste0("PC2 ( ", pc2.pv," variance )")) 
+p
+p1 <- add_ellipase(p,ellipase_pro = 0.95,colour = "dimgrey",linetype=2,lwd=1)
+p1
+ggsave('PCA_DIY1.pdf',width = 4.7,height = 4)
+
+
+##--- figure S1I
 
 
 
-
-
-
+##--- figure S1J
 
 
 
