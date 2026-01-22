@@ -382,7 +382,167 @@ for(j in samples){
 }	
 
 
+##--- figure 1F
+setwd("/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/86.计算各个区域的各类细胞的表达差异/")
+.libPaths(c("/xtdisk/tianchx_group/gongjy/0.tools/my_R_packages/R4.3.3_mypkg", .libPaths()))
 
+samples<- system("ls -l /xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/59.空间转录组定义区域3 | awk '{print $9}'", intern = TRUE)
+samples<-samples[-1]
+print(samples)
+
+outaTab<-data.frame()
+
+for(i in samples){
+	sample<-readRDS(paste0("/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/59.空间转录组定义区域3/",i,"/Region.RDS"))
+	sample@meta.data$Barcode<-rownames(sample@meta.data)
+	meta_sample<-sample@meta.data[,c("Barcode","Region")]
+	sample_Spotlight<-read.table(paste0("/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/Spatial_result/",i,"/2.SPOTlight/level_5/cellproportion3/spotlight.csv"),sep=",",header=T,check.names=F)
+	sample_data<-merge(meta_sample,sample_Spotlight,by="Barcode")
+	sample_data$Sample=i
+	outaTab<-rbind(outaTab,sample_data)
+}
+
+table(outaTab$Sample,outaTab$Region)
+outaTab<-outaTab[,c("Barcode","Region","B.Plasma","Endothelial","Epithelial","Fibroblast","Mast","Myeloid","Neoplastic","PT","T","NK","Sample")]
+cells<-c("B.Plasma","Endothelial","Epithelial","Fibroblast","Mast","Myeloid","Neoplastic","PT","T","NK")
+outTab2<-data.frame()
+
+for(i in levels(factor(outaTab$Sample))){
+	for(j in levels(factor(outaTab$Region))){
+		for(k in cells){
+			outTab2=rbind(outTab2,cbind(Sample=i,Region=j,Cell=k,Ratio=mean(as.numeric(outaTab[outaTab$Sample==i & outaTab$Region==j,k]))))
+			}
+	}
+}
+
+write.table(outTab2,"Ratio_region0824.csv",sep=",",col.names=T,row.names=F,quote=F)
+
+library(ggplot2)
+library(tidyverse)
+library(ggsignif)
+setwd("/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/86.计算各个区域的各类细胞的表达差异/")
+
+data <- read.csv("Ratio_region0824.csv", sep=",", header=TRUE, check.names=FALSE)
+data <- data[,-1]
+head(data)
+
+data$group<-paste0(data$Cell,"_",data$Region)
+colnames(data)<-c("group2","cancer", "values","group")
+data<-as.data.frame(data)
+levels(factor(data$group))
+data$group <- factor(data$group, levels = c("B.Plasma_Normal","B.Plasma_Capsule","B.Plasma_Tumor",
+											"T_Normal","T_Capsule","T_Tumor",
+											"NK_Normal","NK_Capsule","NK_Tumor",
+											"Mast_Normal","Mast_Capsule","Mast_Tumor",
+											"Myeloid_Normal","Myeloid_Capsule","Myeloid_Tumor",
+											"Endothelial_Normal","Endothelial_Capsule","Endothelial_Tumor",
+											"Epithelial_Normal","Epithelial_Capsule","Epithelial_Tumor",
+											"Fibroblast_Normal","Fibroblast_Capsule","Fibroblast_Tumor",
+											"Neoplastic_Normal","Neoplastic_Capsule","Neoplastic_Tumor",
+											"PT_Normal","PT_Capsule","PT_Tumor"))
+data<-as.data.frame(data)
+p <- ggplot(data)+
+  geom_boxplot(aes(group, values, fill = group2, color = group2), 
+               # 间距调整：
+               width = 0.5,
+               outlier.shape = NA
+               ) +  labs(y = "Cell ratio in each spots",x="")+
+  # 中位数线：
+  #geom_line(data = tmp_data, aes(x_value, med_value, group = group), color = "#ffffff")+
+  # 顶部灰色方块：
+  geom_rect(aes(xmin=0, xmax=31, ymin=0.72, ymax = 0.8), fill="#eaeae0")+
+  # 灰色竖线：
+  geom_vline(xintercept = c(0.5+seq(3,27,by=3)), color = "#bcbdbf", alpha = 0.8)+
+  # x轴标签：
+  scale_x_discrete(labels = rep(c("N", "C","T"), 10))+
+  scale_y_continuous(expand = c(0,0),breaks = seq(0,0.7,.1),limits = c(0,0.8))+ # 数据范围到 0.8，只显示到 0.7 的刻度
+  # 颜色：
+#   scale_fill_manual(values = c("#00BFFF","#FFD700",  "#27408B"))+
+#   scale_color_manual(values = c("#00BFFF","#FFD700",  "#27408B"))+
+#   scale_fill_manual(values = c("#2e8cf0ff", "#46e931ff", "#F28E2BFF"))+
+#   scale_color_manual(values = c("#2e8cf0ff", "#46e931ff", "#F28E2BFF"))+
+  scale_fill_manual(values = c("#7AC3DF", "#70CDBE", "#EB7E60"))+
+  scale_color_manual(values = c("#7AC3DF", "#70CDBE", "#EB7E60"))+
+  # 主题：
+  theme_bw()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        # ---- 坐标轴样式 ----
+        axis.text.x = element_text(size = 12, color = "black"),   # 横轴刻度字号
+        axis.text.y = element_text(size = 12, color = "black"),   # 纵轴刻度字号
+        axis.title.y = element_text(size = 14, color = "black"),  # 纵轴标题
+        axis.line = element_line(color = "black"),                # 坐标轴线黑色
+        axis.ticks = element_line(color = "black"),               # 坐标轴刻度黑色
+        axis.ticks.length = unit(0.18, "cm")                       # 刻度线长度，默认大概是0.15cm
+        )+
+  # 添加p值：
+  geom_signif(aes(group, values),
+              comparisons = list(c("B.Plasma_Capsule","B.Plasma_Tumor"),
+								c("B.Plasma_Normal","B.Plasma_Tumor"),
+								c("T_Normal","T_Capsule"),
+								c("T_Capsule","T_Tumor"),
+								c("T_Normal","T_Tumor"),
+								c("Mast_Capsule","Mast_Tumor"),
+								c("Mast_Normal","Mast_Tumor"),
+								c("Myeloid_Normal","Myeloid_Capsule"),
+								#c("Myeloid_Capsule","Myeloid_Tumor"),
+								c("Myeloid_Normal","Myeloid_Tumor"),
+								c("Endothelial_Normal","Endothelial_Capsule"),
+								c("Endothelial_Capsule","Endothelial_Tumor"),
+								c("Endothelial_Normal","Endothelial_Tumor"),
+								c("Epithelial_Normal","Epithelial_Capsule"),
+								c("Epithelial_Capsule","Epithelial_Tumor"),
+								c("Epithelial_Normal","Epithelial_Tumor"),
+								c("Fibroblast_Normal","Fibroblast_Capsule"),
+								c("Fibroblast_Capsule","Fibroblast_Tumor"),
+								c("Fibroblast_Normal","Fibroblast_Tumor"),
+								c("Neoplastic_Normal","Neoplastic_Capsule"),
+								c("Neoplastic_Capsule","Neoplastic_Tumor"),
+								c("Neoplastic_Normal","Neoplastic_Tumor"),
+                                c("NK_Capsule","NK_Tumor"), #新增的显著性
+								c("PT_Normal","PT_Capsule"),
+								c("PT_Capsule","PT_Tumor"),
+								c("PT_Normal","PT_Tumor")),
+              vjust = 1.7,  # 距离调小，文字会更靠近横线。需设大于1，1为重合
+              tip_length = rep(0,8), 
+              y_position = c(0.15, 0.20, # B.Plasma
+							 0.28, 0.33, 0.38, # T
+							 0.06, 0.11, # Mast
+							 0.13, 0.18, # Myeloid
+							 0.12, 0.17, 0.22, # Endothelial
+							 0.56, 0.61, 0.66, # Epithelial
+							 0.41, 0.46, 0.51, # Fibroblast
+							 0.25, 0.3, 0.35, # Neoplastic
+                             0.15, # NK
+							 0.12, 0.17, 0.22), # PT
+              annotations = c("***", "**", # B.Plasma
+							  "*", "***", "***", # T
+							  "***", "***", # Mast
+							  "*", "***", # Myeloid
+							  "**","***","***", # Endothelial
+							  "***", "***", "***", # Epithelial
+							  "***", "***", "***", # Fibroblast
+							  "*", "***", "***", # Neoplastic 
+                              "*", # NK
+							  "*", "***", "***") # PT
+							  )+
+  annotate("text", 
+            x = seq(2, 31, 3), 
+            y = 0.76, 
+            size = 3.5, 
+            lineheight = 0.8, 
+            label = c("B/Plasma",
+                        "T",
+                        "NK",
+                        "Mast",
+                        "Myeloid",
+                        "Endothelial",
+                        "Epithelial",
+                        "Fibroblast",
+                        "Malignant\ncells", 
+                        "PT"))
+ggsave("sumcellratio_boxplot0824.png", height = 3.5, width = 9, dpi = 300) 
+ggsave('sumcellratio_boxplot0824.pdf', height = 3.5, width = 9, dpi = 300) 
 
 
 
