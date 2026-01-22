@@ -383,6 +383,115 @@ ggsave('PCA_DIY1.pdf',width = 4.7,height = 4)
 
 
 ##--- figure S1J
+library(ggplot2)
+library(ggrepel)
+library(dplyr)
+setwd("F:/23.肾包膜项目/54.蛋白组学的差异/8.做二维")
+rt=read.delim("Protein.txt",sep="\t",header=T,check.names=F)
+rt<-rt[,c("PG.Genes","[1] C5521.raw.PG.Quantity","[2] C7412.raw.PG.Quantity","[3] C7441.raw.PG.Quantity",
+"[4] C7469.raw.PG.Quantity","[5] C7968.raw.PG.Quantity","[6] T5521.raw.PG.Quantity","[7] T7412.raw.PG.Quantity",
+"[8] T7441.raw.PG.Quantity","[9] T7469.raw.PG.Quantity","[10] T7968.raw.PG.Quantity")]
+colnames(rt)<-c("ID",paste0("C",rep(1:5)),paste0("T",rep(1:5)))
+rt[is.na(rt)] <- 0
+			   
+ECM<-read.table("F:\\2.研究生课题\\2.重新整合\\26.利用Ecotype的细胞进行gsva\\matrisome_hs_masterlist.csv",sep=",",header=T,check.names=F)
+ECM[1:4,1:4]
+colnames(ECM)[3]="ID"
+ECM<-ECM[,c("ID","Category","Division")]
+
+for(i in 1:nrow(rt)){
+	rt[i,"ID"] <- strsplit(rt[i,"ID"], ";")[[1]][1]
+}
+rt<-subset(rt,ID %in% ECM$ID)
+dim(rt)
+rt <- rt[complete.cases(rt), ]
+dim(rt)
+rt=as.matrix(rt)
+rownames(rt)=rt[,1]
+exp=rt[,2:ncol(rt)]
+dimnames=list(rownames(exp),colnames(exp))
+rt=matrix(as.numeric(as.matrix(exp)),nrow=nrow(exp),dimnames=dimnames)
+dim(rt)
+norm_level<-mean(colSums(rt))
+rt <- apply(rt, 2, function(x) x / sum(x))
+rt[1:4,1:4]
+#rt<-rt*norm_level
+#rt[1:4,1:4]
+#rt<-round(rt)
+rt<-cbind(rt,Capsule=0,Tumor=0)
+for(i in 1:nrow(rt)){
+	rt[i,"Capsule"]<-mean(as.numeric(rt[i,1:5]))
+	rt[i,"Tumor"]<-mean(as.numeric(rt[i,6:10]))
+}
+
+dat2<-rt[,c("Capsule","Tumor")]
+dat2<-dat2*100
+dat2<-cbind(ID=rownames(dat2),dat2)
+			
+ECM<-read.table("F:\\2.研究生课题\\2.重新整合\\26.利用Ecotype的细胞进行gsva\\matrisome_hs_masterlist.csv",sep=",",header=T,check.names=F)
+ECM[1:4,1:4]
+colnames(ECM)[3]="ID"
+ECM<-ECM[,c("ID","Category","Division")]
+			
+dat2<-merge(ECM,dat2,by="ID")
+head(dat2)
+colnames(dat2)[1]<-"Gene"
+write.table(dat2,"data_used.csv",sep=",",col.names=T,row.names=F,quote=F)
+dat2[1:4,]
+dat2$Category<-factor(dat2$Category,levels=c("Collagens","ECM Glycoproteins","Proteoglycans","ECM Regulators","ECM-affiliated Proteins","Secreted Factors"))
+dim(dat2)
+			
+per2<-subset(dat2,Capsule > 0 & Tumor > 0)
+dim(per2)
+max(-log2(as.numeric(per2$Capsule)))
+max(-log2(as.numeric(per2$Tumor)))
+per2$Tumor<-as.numeric(per2$Tumor)
+per2$Capsule<-as.numeric(per2$Capsule)
+#per2<-as.data.frame(per2)
+per2<-as.data.frame(per2)
+rownames(per2)<-per2$Gene
+table(per2$Category)
+write.table(per2,"data_used2.csv",sep=",",col.names=T,row.names=F,quote=F)
+			
+# per2<-read.table("data_used2.csv",sep=",",header=T,check.names=F)
+rownames(per2)<-per2$Gene
+per2$Tumor_Capsule<-per2$Tumor/per2$Capsule
+per2$Capsule_Tumor<-per2$Capsule/per2$Tumor
+# do plot			
+p<-ggplot(per2, aes(x=-log2(Tumor),y=-log2(Capsule)))+theme_bw()+
+	geom_point(aes(fill=Category,shape=Category,color=Category))+ 
+	labs(x="-log2 Protein abundance in Tumor (mean%)",y="-log2 Protein abundance in Capsule (mean%)")+
+	theme(axis.title = element_text(size = 16),
+		legend.title = element_blank(),
+		legend.position = c(0.22,.83),
+		legend.background = element_rect(fill = "transparent"),
+		panel.grid=element_blank(),
+		legend.text = element_text(size=12,face="bold"))+
+	scale_shape_manual(values = c(21:25,21))+
+	scale_color_manual(values = c("Collagens"='#cc0000',"ECM-affiliated Proteins"="#B8860B","ECM Glycoproteins"="#1c4587",
+	"ECM Regulators"="#2C92DA","Proteoglycans"="#228B22","Secreted Factors"="#6529c0"))+
+	scale_fill_manual(values = c("Collagens"='#cc0000',"ECM-affiliated Proteins"="#B8860B","ECM Glycoproteins"="#1c4587",
+	"ECM Regulators"="#2C92DA","Proteoglycans"="#228B22","Secreted Factors"="#6529c0"))+
+	scale_y_continuous(breaks=seq(0,25,5))+
+	scale_x_continuous(breaks=seq(0,25,5))+
+	geom_blank(aes(y = 15))+
+	geom_blank(aes(x = 15))+
+	#theme(legend.text = element_text(size=20,face="bold"))+#改变legend的大小
+	#slope控制斜率，intercept控制截距
+	geom_abline(slope = 1,intercept = 0,lwd=0.8,linetype="dashed",color="grey")+
+	geom_abline(slope = 1,intercept = log2(6),lwd=0.5,linetype="dashed",color="grey")+
+	geom_abline(slope = 1,intercept = -log2(6),lwd=0.5,linetype="dashed",color="grey")+
+	geom_text_repel(
+	data = per2[-log2(per2$Tumor_Capsule) >log2(6) | -log2(per2$Capsule_Tumor)>log2(6),],
+	aes(label = per2[-log2(per2$Tumor_Capsule) >log2(6) | -log2(per2$Capsule_Tumor)>log2(6),1]),
+	size = 5,colour="black",box.padding=unit(0.5,"lines"),
+	point.padding=unit(0.8,"lines"),
+	show.legend=F,max.overlaps=19,
+	force=1)+
+	guides(shape = guide_legend(override.aes = list(size = 4)))  # Add this line to adjust legend symbols
+	
+ggsave("Tumor vs Capsule.pdf",p,width = 6, height = 6)
+
 
 
 
