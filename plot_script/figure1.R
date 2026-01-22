@@ -622,8 +622,8 @@ library(enrichplot)
 library(ggplot2)
 library(plyr)
 library(dplyr)
-Sys.setenv(LANGUAGE = "en") #显示英文报错信息
-options(stringsAsFactors = FALSE) #禁止chr转成factor
+Sys.setenv(LANGUAGE = "en") 
+options(stringsAsFactors = FALSE) 
 setwd("F:/23.肾包膜项目/109.全蛋白质谱的差异分析/11.GO与KEGG功能富集分析的barplot")
 
 data<-read.table("data.txt",header=T,check.names=F,sep="\t")
@@ -673,6 +673,333 @@ ggsave("GO_proteomic_Capsule.pdf", width = 4.8, height = 4)
 
 
 ##--- figure 1I
+setwd("F:/23.肾包膜项目/54.蛋白组学的差异/3.差异蛋白的热图")
+ECM<-read.table("F:\\2.研究生课题\\2.重新整合\\26.利用Ecotype的细胞进行gsva\\matrisome_hs_masterlist.csv",sep=",",header=T,check.names=F)
+ECM[1:4,1:4]
+colnames(ECM)[3]="ID"
+ECM<-ECM[,c("ID","Category","Division")]
+length_col<-dim(ECM)[2]
+rownames(ECM)<-ECM$ID
+CellMajor<-read.table("F:/23.肾包膜项目/55.细胞大类的各类基因的差异/Total_CellMajor.csv",sep=",",header=T,check.names=F)
+CellMajor<-subset(CellMajor, gene %in% ECM$ID)
+levels(factor(CellMajor$cluster))
+
+cell<-subset(CellMajor, cluster %in% c("B/Plasma"))
+ECM[,"B_Plasma"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"B_Plasma"]=cell[i,"avg_log2FC"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Endothelial"))
+ECM[,"Endothelial"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Endothelial"]=cell[i,"avg_log2FC"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Epithelial"))
+ECM[,"Epithelial"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Epithelial"]=cell[i,"avg_log2FC"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Fibroblast"))
+ECM[,"Fibroblast"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Fibroblast"]=cell[i,"avg_log2FC"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Mast"))
+ECM[,"Mast"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Mast"]=cell[i,"avg_log2FC"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Myeloid"))
+ECM[,"Myeloid"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Myeloid"]=cell[i,"avg_log2FC"]
+}
+
+ECM[,"Neoplastic"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Neoplastic"]=cell[i,"avg_log2FC"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("NK"))
+ECM[,"NK"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"NK"]=cell[i,"avg_log2FC"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("PT"))
+ECM[,"PT"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"PT"]=cell[i,"avg_log2FC"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("T"))
+ECM[,"T"]=0
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"T"]=cell[i,"avg_log2FC"]
+}
+Genetype<-ECM[,1:3]
+rownames(ECM)<-ECM$ID
+ECM<-ECM[,4:ncol(ECM)]
+
+
+# 按照条件筛选矩阵中某一列大于0的元素
+#ECM_LogFC<-subset(ECM,abs(Num)>0)
+ECM_LogFC<-ECM
+ECM_LogFC<-cbind(ID=rownames(ECM_LogFC),ECM_LogFC)
+
+##########################################################################
+setwd("F:/23.肾包膜项目/54.蛋白组学的差异/3.差异蛋白的热图")
+ECM<-read.table("F:\\2.研究生课题\\2.重新整合\\26.利用Ecotype的细胞进行gsva\\matrisome_hs_masterlist.csv",sep=",",header=T,check.names=F)
+ECM[1:4,1:4]
+colnames(ECM)[3]="ID"
+ECM<-ECM[,c("ID","Category","Division")]
+length_col<-dim(ECM)[2]
+rownames(ECM)<-ECM$ID
+CellMajor<-read.table("F:/23.肾包膜项目/55.细胞大类的各类基因的差异/Total_CellMajor.csv",sep=",",header=T,check.names=F)
+CellMajor<-subset(CellMajor, gene %in% ECM$ID)
+levels(factor(CellMajor$cluster))
+
+cell<-subset(CellMajor, cluster %in% c("B/Plasma"))
+ECM[,"B_Plasma"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"B_Plasma"]=cell[i,"p_val_adj"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Endothelial"))
+ECM[,"Endothelial"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Endothelial"]=cell[i,"p_val_adj"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Epithelial"))
+ECM[,"Epithelial"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Epithelial"]=cell[i,"p_val_adj"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Fibroblast"))
+ECM[,"Fibroblast"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Fibroblast"]=cell[i,"p_val_adj"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Mast"))
+ECM[,"Mast"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Mast"]=cell[i,"p_val_adj"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("Myeloid"))
+ECM[,"Myeloid"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Myeloid"]=cell[i,"p_val_adj"]
+}
+
+ECM[,"Neoplastic"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"Neoplastic"]=cell[i,"p_val_adj"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("NK"))
+ECM[,"NK"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"NK"]=cell[i,"p_val_adj"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("PT"))
+ECM[,"PT"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"PT"]=cell[i,"p_val_adj"]
+}
+
+cell<-subset(CellMajor, cluster %in% c("T"))
+ECM[,"T"]=1
+for(i in 1:nrow(cell)){
+	ECM[cell[i,"gene"],"T"]=cell[i,"p_val_adj"]
+}
+#Genetype<-ECM[,1:3]
+rownames(ECM)<-ECM$ID
+ECM<-ECM[,4:ncol(ECM)]
+
+# 按照条件筛选矩阵中某一列大于0的元素
+#ECM_LogFC<-subset(ECM,abs(Num)>0)
+ECM_Pvalue<-ECM
+ECM_Pvalue<-cbind(ID=rownames(ECM_Pvalue),ECM_Pvalue)
+
+#ECM_Pvalue<-subset(ECM,abs(Num)>0)
+#ECM_Pvalue<-cbind(ID=rownames(ECM_Pvalue),ECM_Pvalue)
+
+setwd("F:/23.肾包膜项目/55.细胞大类的各类基因的差异")
+
+write.table(ECM_Pvalue,"ECM_Pvalue.csv",quote=F,sep=",",row.names=F,col.names=T)
+
+ECM_LogFC<-subset(ECM_LogFC, ID %in% ECM_Pvalue$ID)
+
+write.table(ECM_LogFC,"ECM_LogFC.csv",quote=F,sep=",",row.names=F,col.names=T)
+Genetype<-subset(Genetype, ID %in% ECM_Pvalue$ID)
+write.table(Genetype,"GenoType.csv",quote=F,sep=",",row.names=F,col.names=T)
+
+############################################################################################
+library(ComplexHeatmap) # 用于绘制热图
+library(circlize) # 用于热图颜色设置
+#library(ChAMPdata) # 用于提供甲基化注释文件
+library(data.table) # 用于读取大文件
+#library(genefu) # 用于获取乳腺癌PAM50分型
+#data("pam50.robust")
+#data("probe.features")
+Sys.setenv(LANGUAGE = "en") #显示英文报错信息
+options(stringsAsFactors = FALSE) #禁止chr转成factor
+setwd("F:/23.肾包膜项目/54.蛋白组学的差异/3.差异蛋白的热图")
+scRNA_harmony<-readRDS("F:/23.肾包膜项目/19.NMF鉴定恶性肿瘤细胞亚群/Total_Malignant.rds")
+table(scRNA_harmony@meta.data$CellMajor2)
+table(scRNA_harmony@meta.data$CellMin2)
+Deseq2_used<-read.table("../1.Limma做差异/校正后的差异/ECM_diff_DESeq2_used.xls",sep="\t",header=T,check.names=F)
+#scRNA_harmony<-subset(scRNA_harmony,CellMin2 %in% c("iCAF","myCAF","imPVL","dPVL"))
+Deseq2_used$Region<-ifelse(Deseq2_used$log2FoldChange>0,"Tumor","Capsule")
+#scRNA_harmony<-subset(scRNA_harmony,Region %in% c("Capsule"))
+
+Idents(object = scRNA_harmony) <- "CellMajor2"
+heatmap_gene <- c("DCN","COL4A4","CLEC3B","COL14A1","THSD4","MGP","TNXB",
+"COL16A1","FRZB","F9","EGLN1","SERPINH1","AGRN","ANXA4","COL21A1","COL5A3")
+heatmap.BlWtRd <- c("#1F66AC", "grey90", "#B2192B")
+#celltype <- c("Memory","Effector","Exhausted")
+expMat <- AverageExpression(scRNA_harmony, assays = "RNA", features = heatmap_gene,verbose = TRUE) %>% .$RNA
+expMat
+
+P_Value<-read.table("F:/23.肾包膜项目/55.细胞大类的各类基因的差异/ECM_Pvalue.csv",sep=",",check.names=F,header=T)
+
+ECM_label<-subset(P_Value, ID %in% rownames(expMat))
+
+genetype<-read.table("F:/23.肾包膜项目/55.细胞大类的各类基因的差异/GenoType.csv",sep=",",row.names=1,header=T,check.names=F)
+
+## 绘制表达谱热图（参数下同）
+#########################################################################################
+
+rownames(ECM_label)<-ECM_label$ID
+ECM_label<-ECM_label[,-1]
+
+for(i in 1:nrow(ECM_label)){
+	for(j in 1:ncol(ECM_label)){
+		if(as.numeric(ECM_label[i,j])< 0.05){
+			ECM_label[i,j]="*"
+		}else{
+				ECM_label[i,j]=" "
+			}
+	}
+}
+
+cell_fun <- function(ECM_label,  
+                     darkcol = "black", lightcol = "white", digit = 2, fontsize  = 8){
+    function(j, i, x, y, width, height, fill){
+        if(ECM_label[i,j] == 0){
+            grid.text("a", x, y, 
+                      gp = gpar(fontsize = 10, col  = darkcol))
+        }else{
+				if(ECM_label[i,j] == "NaN"){
+					grid.text("NA", x, y, 
+                    gp = gpar(fontsize = fontsize, col  = darkcol))
+				}else{
+					if(ECM_label[i,j] == "Inf"){
+						grid.text("b", x, y, 
+						gp = gpar(fontsize = 10, col  = darkcol))
+					}else{
+						if(ECM_label[i,j] == "*"){
+							grid.text("*", x, y, 
+							gp = gpar(fontsize = 12, col  = darkcol))
+						}else{
+							if(ECM_label[i,j] == " "){
+								grid.text(" ", x, y, 
+								gp = gpar(fontsize = fontsize, col  = lightcol))
+							}
+						}
+					}
+				}
+			}
+		}
+    }
+
+#####################################annRow##########################################
+immunomodulator<-genetype[rownames(expMat),]
+rownames(Deseq2_used)<-Deseq2_used$ID
+immunomodulator<-cbind(immunomodulator,Region=Deseq2_used[rownames(expMat),"Region"])
+annRow <- immunomodulator
+
+unique(immunomodulator$Category)
+unique(immunomodulator$Division)
+
+annRow<-annRow[order(rownames(annRow)),]
+
+annRow<-annRow[order(annRow[,1]),]
+annRow<-annRow[order(annRow[,2]),]
+annRow$Category <- factor(annRow$Category, levels = c("ECM Glycoproteins","ECM Regulators",
+		"Secreted Factors","Proteoglycans","ECM-affiliated Proteins","Collagens")) # 由于行需要按照类分割，所以需要定义因子顺序，否则按照字母表
+annRow$Division <- factor(annRow$Division, levels = c("Core matrisome","Matrisome-associated"))
+annRow$Region <- factor(annRow$Region, levels = c("Capsule","Tumor"))
+annRowColors <- list("Division" = c("Core matrisome"="#FFA500","Matrisome-associated"="#5D478B"),
+			"Category"= c("ECM Glycoproteins"="#ED1450", "ECM Regulators"="#FCCA02", 
+			"Secreted Factors" = "#A7CE35", "Proteoglycans" = "#2C92DA", 
+			"ECM-affiliated Proteins" = "#228B22", "Collagens" = "#FFF8AD"))
+left_anno <- HeatmapAnnotation(df                   = data.frame(Division = annRow$Division,Category = annRow$Category),
+                               which                = "row", # 这里是行注释（默认为列）
+                               gp                   = gpar(col = "grey80"), # 每个单元格边框为灰色
+                               col                  = annRowColors,
+                               simple_anno_size     = unit(3.5, "mm"), # 注释宽3.5毫米
+                               show_annotation_name = F,
+                               border               = F)
+
+ECM_label<-ECM_label[rownames(annRow),]
+colnames(ECM_label)[1]<-"B/Plasma"
+ECM_label<-ECM_label[,colnames(expMat)]
+# 创建行注释
+expMat2 <- t(apply(expMat, 1, function(row) {
+  min_val <- min(row)
+  max_val <- max(row)
+  
+  # 校正公式：newValue = (oldValue - minVal) * (newMax - newMin) / (maxVal - minVal) + newMin
+  corrected_row <- (row - min_val) * (2 - (-2)) / (max_val - min_val) + (-2)
+  
+  return(corrected_row)
+}))
+
+col_expr <- colorRamp2(c(min(na.omit(expMat2)),0,max(na.omit(expMat2))), heatmap.BlWtRd) # 创建热图颜色（将热图输入矩阵的最大最小值取5个点，分配颜色红蓝色板；注意矩阵中可能存在的NA值）
+
+ECM.expr <- Heatmap(matrix             = as.matrix(expMat2[rownames(annRow),]),
+                   col                = col_expr,
+                   border             = NA, # 无热图外边框
+                   rect_gp = gpar(col = "grey80"), # 热图单元格边框为灰色
+                   cluster_rows       = F, # 行不聚类
+                   cluster_columns    = F, # 列不聚类
+                   show_row_names     = T, # 显示行名
+                   row_names_side     = "left", # 行名显示在左侧
+				   cell_fun = cell_fun(ECM_label), 
+                   row_names_gp       = gpar(fontsize = 10), # 行名字号为10
+                   show_column_names  = T, # 不显示列名（可后期在颜色内AI使得亚型一目了然）
+                   column_names_side  = "bottom", # 列名显示在顶部
+                   row_split          = annRow$Region, # 行按照Category进行分割（因子顺序）
+				   column_names_rot = 45, #肿瘤类型呈45度
+                   #top_annotation     = top_anno, # 热图顶部注释
+                   left_annotation    = left_anno, # 热图左侧注释
+                   name               = "Expression", # 热图颜色图例的名称
+                   width              = ncol(expMat) * unit(6, "mm"), # 热图单元格宽度（稍大于高度，因为所有注释都放在底部，平衡图形纵横比）
+                   height             = nrow(expMat) * unit(5.5, "mm")) # 热图单元格高度
+
+
+###########################################################################
+pdf(file = "Protein.pdf", width = 6,height = 7)
+draw(ECM.expr,
+	 heatmap_legend_side = "right", # 热图注释放底部
+     annotation_legend_side = "right") # 热图颜色图例显示在下方
+	 #heatmap_legend_side = "bottom", # 热图注释放底部
+     #annotation_legend_side = "bottom") # 热图颜色图例显示在下方
+invisible(dev.off())
+
+#expMat<-cbind(ID=rownames(expMat),expMat)
+#write.table(expMat,"ECM_Log2FC_PanCancer.csv",row.names=F,col.names=T,sep=",",quote=F)
 
 
 
