@@ -156,6 +156,149 @@ invisible(dev.off())
 
 
 
+##--- figure S1D
+
+
+
+##--- figure S1F
+library(harmony)
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+library(hdf5r)
+library(cowplot)
+library(data.table)
+library(plyr)
+
+setwd("/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/86.计算各个区域的各类细胞的表达差异")
+data <- read.csv("Ratio_region0826.csv")
+dim(data)
+data <- na.omit(data)
+dim(data)
+outTab<-data.frame()
+for(i in levels(factor(data$Region))){
+	for(j in levels(factor(data$Cell))){
+		outTab<-rbind(outTab,cbind(Region=i,Cell=j,Mean=mean(as.numeric(data[data$Region==i & data$Cell==j,"Ratio"]))))
+	}
+}
+outTab$Mean<-as.numeric(outTab$Mean)*100
+write.table(outTab,"Ratio_region_mean.csv",sep=",",col.names=T,row.names=F,quote=F)
+
+##----- draw capsule sample ratio plot
+data <- read.table("Ratio_region_mean.csv", sep=",", header=T, check.names=F)
+data <- subset(data, Region %in% c("Capsule"))
+
+# descent order by ratio
+data <- data %>% arrange(Mean) #desc(Mean)
+data$Cell <- factor(data$Cell, levels = data$Cell)
+
+# set color
+forestCol = c(
+  "T"="#E95D53","NK"="#F9F871","B.Plasma"="#ECB37B",
+  "Myeloid"="#D3ACAE","Mast"="#D1D198","Endothelial"="#3EAC71",
+  "Fibroblast"="#4FFBDF","PT"="#C5E7A4",
+  "Epithelial"="#5867AF","Neoplastic"="#465886"
+)
+
+# do plot
+p <- ggplot(data, aes(x=Cell, y=Mean, fill=Cell)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  scale_fill_manual(values=forestCol) +
+  scale_y_continuous(limits = c(0, 40), breaks = seq(0, 40, 10)) +
+  labs(x="", y="Mean cell proportion in Capsule (%)") +
+  theme_classic() +
+  theme(
+    panel.grid.major = element_blank(),
+    axis.text.y = element_text(size = 18, colour = 'black'),
+    axis.text.x = element_text(size = 18, colour = 'black'),
+    axis.title.x = element_text(size = 15, colour = 'black'),
+    axis.title.y = element_text(size = 15, colour = 'black'),
+    axis.line = element_line(size = 1.0),
+    legend.position = "none"
+  )
+
+ggsave("02.Region_Capsule_Proportion.pdf", plot=p, device="pdf", width=5.5, height=4.5)
+
+##----- draw tymor sample ratio plot
+data <- read.table("Ratio_region_mean.csv", sep=",", header=T, check.names=F)
+data <- subset(data, Region %in% c("Tumor"))
+
+# descent order by ratio
+data <- data %>% arrange(Mean) #desc(Mean)
+data$Cell <- factor(data$Cell, levels = data$Cell)
+
+# set color
+forestCol = c(
+  "T"="#E95D53","NK"="#F9F871","B.Plasma"="#ECB37B",
+  "Myeloid"="#D3ACAE","Mast"="#D1D198","Endothelial"="#3EAC71",
+  "Fibroblast"="#4FFBDF","PT"="#C5E7A4",
+  "Epithelial"="#5867AF","Neoplastic"="#465886"
+)
+
+# do plot
+p <- ggplot(data, aes(x=Cell, y=Mean, fill=Cell)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  scale_fill_manual(values=forestCol) +
+  scale_y_continuous(limits = c(0, 40), breaks = seq(0, 40, 10)) +
+  labs(x="", y="Mean cell proportion in Tumor (%)") +
+  theme_classic() +
+  theme(
+    panel.grid.major = element_blank(),
+    axis.text.y = element_text(size = 18, colour = 'black'),
+    axis.text.x = element_text(size = 18, colour = 'black'),
+    axis.title.x = element_text(size = 15, colour = 'black'),
+    axis.title.y = element_text(size = 15, colour = 'black'),
+    axis.line = element_line(size = 1.0),
+    legend.position = "none"
+  )
+
+ggsave("02.Region_Tumor_Proportion.pdf", plot=p, device="pdf", width=5.5, height=4.5)
+
+##----- draw normal sample ratio plot
+data <- read.table("Ratio_region_mean.csv", sep=",", header=T, check.names=F)
+data <- subset(data, Region %in% c("Normal"))
+
+# descent order by ratio
+data <- data %>% arrange(Mean) #desc(Mean)
+data$Cell <- factor(data$Cell, levels = data$Cell)
+
+# set color
+forestCol = c(
+  "T"="#E95D53","NK"="#F9F871","B.Plasma"="#ECB37B",
+  "Myeloid"="#D3ACAE","Mast"="#D1D198","Endothelial"="#3EAC71",
+  "Fibroblast"="#4FFBDF","PT"="#C5E7A4",
+  "Epithelial"="#5867AF","Neoplastic"="#465886"
+)
+
+# do plot
+p <- ggplot(data, aes(x=Cell, y=Mean, fill=Cell)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  scale_fill_manual(values=forestCol) +
+  scale_y_continuous(limits = c(0, 45), breaks = seq(0, 45, 10)) +
+  labs(x="", y="Mean cell proportion in Normal (%)") +
+  theme_classic() +
+  theme(
+    panel.grid.major = element_blank(),
+    axis.text.y = element_text(size = 18, colour = 'black'),
+    axis.text.x = element_text(size = 18, colour = 'black'),
+    axis.title.x = element_text(size = 15, colour = 'black'),
+    axis.title.y = element_text(size = 15, colour = 'black'),
+    axis.line = element_line(size = 1.0),
+    legend.position = "none"
+  )
+
+ggsave("02.Region_Normal_Proportion.pdf", plot=p, device="pdf", width=5.5, height=4.5)
+
+
+##--- figure S1F
+
+
+
+
 
 
 
