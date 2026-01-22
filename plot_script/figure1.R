@@ -746,8 +746,7 @@ Genetype<-ECM[,1:3]
 rownames(ECM)<-ECM$ID
 ECM<-ECM[,4:ncol(ECM)]
 
-
-# 按照条件筛选矩阵中某一列大于0的元素
+# filter
 #ECM_LogFC<-subset(ECM,abs(Num)>0)
 ECM_LogFC<-ECM
 ECM_LogFC<-cbind(ID=rownames(ECM_LogFC),ECM_LogFC)
@@ -826,34 +825,26 @@ for(i in 1:nrow(cell)){
 rownames(ECM)<-ECM$ID
 ECM<-ECM[,4:ncol(ECM)]
 
-# 按照条件筛选矩阵中某一列大于0的元素
+# filter
 #ECM_LogFC<-subset(ECM,abs(Num)>0)
 ECM_Pvalue<-ECM
 ECM_Pvalue<-cbind(ID=rownames(ECM_Pvalue),ECM_Pvalue)
-
 #ECM_Pvalue<-subset(ECM,abs(Num)>0)
 #ECM_Pvalue<-cbind(ID=rownames(ECM_Pvalue),ECM_Pvalue)
-
-setwd("F:/23.肾包膜项目/55.细胞大类的各类基因的差异")
-
 write.table(ECM_Pvalue,"ECM_Pvalue.csv",quote=F,sep=",",row.names=F,col.names=T)
 
 ECM_LogFC<-subset(ECM_LogFC, ID %in% ECM_Pvalue$ID)
-
 write.table(ECM_LogFC,"ECM_LogFC.csv",quote=F,sep=",",row.names=F,col.names=T)
 Genetype<-subset(Genetype, ID %in% ECM_Pvalue$ID)
 write.table(Genetype,"GenoType.csv",quote=F,sep=",",row.names=F,col.names=T)
 
 ############################################################################################
-library(ComplexHeatmap) # 用于绘制热图
-library(circlize) # 用于热图颜色设置
-#library(ChAMPdata) # 用于提供甲基化注释文件
-library(data.table) # 用于读取大文件
-#library(genefu) # 用于获取乳腺癌PAM50分型
-#data("pam50.robust")
-#data("probe.features")
-Sys.setenv(LANGUAGE = "en") #显示英文报错信息
-options(stringsAsFactors = FALSE) #禁止chr转成factor
+library(ComplexHeatmap) 
+library(circlize) 
+#library(ChAMPdata) 
+library(data.table)
+Sys.setenv(LANGUAGE = "en") 
+options(stringsAsFactors = FALSE) 
 setwd("F:/23.肾包膜项目/54.蛋白组学的差异/3.差异蛋白的热图")
 scRNA_harmony<-readRDS("F:/23.肾包膜项目/19.NMF鉴定恶性肿瘤细胞亚群/Total_Malignant.rds")
 table(scRNA_harmony@meta.data$CellMajor2)
@@ -872,14 +863,8 @@ expMat <- AverageExpression(scRNA_harmony, assays = "RNA", features = heatmap_ge
 expMat
 
 P_Value<-read.table("F:/23.肾包膜项目/55.细胞大类的各类基因的差异/ECM_Pvalue.csv",sep=",",check.names=F,header=T)
-
 ECM_label<-subset(P_Value, ID %in% rownames(expMat))
-
 genetype<-read.table("F:/23.肾包膜项目/55.细胞大类的各类基因的差异/GenoType.csv",sep=",",row.names=1,header=T,check.names=F)
-
-## 绘制表达谱热图（参数下同）
-#########################################################################################
-
 rownames(ECM_label)<-ECM_label$ID
 ECM_label<-ECM_label[,-1]
 
@@ -945,67 +930,56 @@ annRowColors <- list("Division" = c("Core matrisome"="#FFA500","Matrisome-associ
 			"Secreted Factors" = "#A7CE35", "Proteoglycans" = "#2C92DA", 
 			"ECM-affiliated Proteins" = "#228B22", "Collagens" = "#FFF8AD"))
 left_anno <- HeatmapAnnotation(df                   = data.frame(Division = annRow$Division,Category = annRow$Category),
-                               which                = "row", # 这里是行注释（默认为列）
-                               gp                   = gpar(col = "grey80"), # 每个单元格边框为灰色
+                               which                = "row", 
+                               gp                   = gpar(col = "grey80"),
                                col                  = annRowColors,
-                               simple_anno_size     = unit(3.5, "mm"), # 注释宽3.5毫米
+                               simple_anno_size     = unit(3.5, "mm"), 
                                show_annotation_name = F,
                                border               = F)
 
 ECM_label<-ECM_label[rownames(annRow),]
 colnames(ECM_label)[1]<-"B/Plasma"
 ECM_label<-ECM_label[,colnames(expMat)]
-# 创建行注释
+
 expMat2 <- t(apply(expMat, 1, function(row) {
   min_val <- min(row)
   max_val <- max(row)
-  
   # 校正公式：newValue = (oldValue - minVal) * (newMax - newMin) / (maxVal - minVal) + newMin
   corrected_row <- (row - min_val) * (2 - (-2)) / (max_val - min_val) + (-2)
-  
   return(corrected_row)
 }))
 
-col_expr <- colorRamp2(c(min(na.omit(expMat2)),0,max(na.omit(expMat2))), heatmap.BlWtRd) # 创建热图颜色（将热图输入矩阵的最大最小值取5个点，分配颜色红蓝色板；注意矩阵中可能存在的NA值）
+col_expr <- colorRamp2(c(min(na.omit(expMat2)),0,max(na.omit(expMat2))), heatmap.BlWtRd) 
 
 ECM.expr <- Heatmap(matrix             = as.matrix(expMat2[rownames(annRow),]),
                    col                = col_expr,
-                   border             = NA, # 无热图外边框
-                   rect_gp = gpar(col = "grey80"), # 热图单元格边框为灰色
-                   cluster_rows       = F, # 行不聚类
-                   cluster_columns    = F, # 列不聚类
-                   show_row_names     = T, # 显示行名
-                   row_names_side     = "left", # 行名显示在左侧
+                   border             = NA, 
+                   rect_gp = gpar(col = "grey80"), 
+                   cluster_rows       = F, 
+                   cluster_columns    = F, 
+                   show_row_names     = T,
+                   row_names_side     = "left", 
 				   cell_fun = cell_fun(ECM_label), 
-                   row_names_gp       = gpar(fontsize = 10), # 行名字号为10
-                   show_column_names  = T, # 不显示列名（可后期在颜色内AI使得亚型一目了然）
-                   column_names_side  = "bottom", # 列名显示在顶部
-                   row_split          = annRow$Region, # 行按照Category进行分割（因子顺序）
-				   column_names_rot = 45, #肿瘤类型呈45度
-                   #top_annotation     = top_anno, # 热图顶部注释
-                   left_annotation    = left_anno, # 热图左侧注释
-                   name               = "Expression", # 热图颜色图例的名称
-                   width              = ncol(expMat) * unit(6, "mm"), # 热图单元格宽度（稍大于高度，因为所有注释都放在底部，平衡图形纵横比）
-                   height             = nrow(expMat) * unit(5.5, "mm")) # 热图单元格高度
-
-
-###########################################################################
+                   row_names_gp       = gpar(fontsize = 10), 
+                   show_column_names  = T, 
+                   column_names_side  = "bottom", 
+                   row_split          = annRow$Region,
+				   column_names_rot = 45,
+                   #top_annotation     = top_anno, 
+                   left_annotation    = left_anno, 
+                   name               = "Expression", 
+                   width              = ncol(expMat) * unit(6, "mm"),
+                   height             = nrow(expMat) * unit(5.5, "mm"))
+# do plot
 pdf(file = "Protein.pdf", width = 6,height = 7)
 draw(ECM.expr,
-	 heatmap_legend_side = "right", # 热图注释放底部
-     annotation_legend_side = "right") # 热图颜色图例显示在下方
-	 #heatmap_legend_side = "bottom", # 热图注释放底部
-     #annotation_legend_side = "bottom") # 热图颜色图例显示在下方
+	 heatmap_legend_side = "right", 
+     annotation_legend_side = "right") 
+	 #heatmap_legend_side = "bottom", 
+     #annotation_legend_side = "bottom") 
 invisible(dev.off())
 
 #expMat<-cbind(ID=rownames(expMat),expMat)
 #write.table(expMat,"ECM_Log2FC_PanCancer.csv",row.names=F,col.names=T,sep=",",quote=F)
-
-
-
-
-
-
-
 
 
