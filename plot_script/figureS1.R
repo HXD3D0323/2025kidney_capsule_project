@@ -379,7 +379,100 @@ ggsave('PCA_DIY1.pdf',width = 4.7,height = 4)
 
 
 ##--- figure S1I
+library(ggplot2)
+library(latex2exp)
+library(ggrepel)
+setwd("F:/23.肾包膜项目/54.蛋白组学的差异/6.气泡火山图")
+			   
+data<-read.table("F:/23.肾包膜项目/54.蛋白组学的差异/1.Limma做差异/校正后的差异/ECM_diff_DESeq2.xls",sep="\t",header=T,check.names=F)
+data_used<-subset(data,abs(log2FoldChange)>0.25 & padj < 0.1)
+data$regulate<-"Normal"
+head(data)
+rownames(data)<-data$ID
+up<-subset(data,log2FoldChange> 0.25 & padj < 0.1)
+down<-subset(data,log2FoldChange< (-0.25) & padj < 0.1)
+data[rownames(up),"regulate"]="Up"
+data[rownames(down),"regulate"]="Down"
+table(data$regulate)
+write.table(data,"DEG_Deseq2.csv",sep=",",col.names=T,row.names=F,quote=F)
 
+ECM<-read.table("F:\\2.研究生课题\\2.重新整合\\26.利用Ecotype的细胞进行gsva\\matrisome_hs_masterlist.csv",sep=",",header=T,check.names=F)
+ECM[1:4,1:4]
+colnames(ECM)[3]="ID"
+ECM<-ECM[,c("ID","Category","Division")]
+
+data_used<-merge(ECM,data_used,by="ID")
+head(data_used)
+dim(data_used)
+data_used<-data_used[,c("ID","Category")]
+write.table(data_used,file="term_data.csv",sep=",",quote=F,row.names=F,col.names=T)
+
+# log2FC and pvalue of each gene from DEG analysis
+data <- read.csv("DEG_Deseq2.csv")
+rownames(data)<-data$ID
+# gene and involved pathway to show in volcano plot
+term_data <- read.csv("term_data.csv")
+
+data <- na.omit(data)
+#data <- data[!duplicated(data$ID),]
+data$GO_term <- "others"
+term_data <- term_data[term_data$ID %in% data$ID,]
+data[term_data$ID,]$GO_term <- term_data$Category
+
+Down_num <- length(which(data$padj < 0.1 & data$log2FoldChange < (-0.25)))
+Up_num <- length(which(data$padj < 0.1 & data$log2FoldChange > 0.25))
+
+# set color
+color <- rep("#999999",nrow(data))
+
+# 选取p值最显著的25个加上标签(按照log2FC的绝对值排序)：
+data$label <- rep(NA,nrow(data))
+data$label[which(data$GO_term !="others")] <- data$ID[which(data$GO_term !="others")]
+data_selected<-subset(data,GO_term %in% setdiff(levels(factor(data$GO_term)),"others"))
+write.table(data_selected,"data_selected.csv",sep=",",row.names=F,col.names=T,quote=F)
+
+# do plot 
+ggplot(data[which(data$GO_term!="others"),],
+       aes(log2FoldChange,-log10(padj),fill = GO_term))+ 
+  geom_point(data=data[which(data$GO_term=="others"),],
+             aes(log2FoldChange,-log10(padj)),
+             size = 0.5,color="#999999") + 
+  geom_point(size = 3, shape=21, color="black") + 
+  scale_fill_manual(values=c("Collagens"="#ED1450", "ECM-affiliated Proteins"="#FCCA02", 
+                             "ECM Glycoproteins"="#A7CE35","ECM Regulators"="#2C92DA", 
+                             "Proteoglycans"="#228B22","Secreted Factors"="#6529c0")) + 
+  geom_vline(xintercept = 0, linetype ="longdash") +
+  geom_hline(yintercept = -log10(0.1), linetype ="longdash") + 
+  labs(x = TeX("$Log_2 \\textit{FC}$"), 
+       y = TeX("$-Log_{10} \\textit{FDR} $"))+
+  theme(title = element_text(size = 15), text = element_text(size = 15)) + 
+  theme_bw() + 
+  scale_x_continuous(breaks = seq(-3,3,1),limits = c(-3,3)) +
+  theme(panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank())+
+  theme(legend.position = c(0.68, 0.99),
+        legend.justification = c(0, 1),
+        legend.background = element_rect(
+          fill = "#fefde2", 
+          colour = "black", 
+          size = 0.2),
+        legend.key = element_rect(
+          # color = "red", 
+          #fill = "#fefde2"),
+		  fill = "white"),
+        legend.key.size = unit(12, "pt"),
+        legend.title = element_blank())+
+  annotate("text", label = "bolditalic(Down)", parse = TRUE, 
+           x = -0.6, y = 5, size = 4, colour = "black")+
+  annotate("text", label = "bolditalic(Up)", parse = TRUE, 
+           x = 0.3, y = 5, size = 4, colour = "black")+
+  #annotate("text", label = Down_num, parse = TRUE, 
+  #         x = -0.5, y = 4.9, size = 3, colour = "black")+
+  #annotate("text", label = Up_num, parse = TRUE, 
+   #        x = 0.5, y = 4.9, size = 3, colour = "black")+
+  geom_text_repel(aes(label = label),size=3,max.overlaps = 100)
+
+ggsave("vocanol_Plot.pdf",height = 6,width = 6)
 
 
 ##--- figure S1J
