@@ -155,9 +155,9 @@ ggplot(data=data,mapping=aes(x=Cell,y=Proportion,fill=Cell))+
 theme_bw()+#theme(axis.text.x=element_text(angle=45,hjust = 1,vjust=1))+
 labs(x="",y="Cell proportion (%)")+scale_y_continuous(limits = c(0, 50),breaks = seq(0, 50,10))+
 scale_fill_manual(values=forestCol)+coord_flip()+
-#coord_polar()+这是变成旋转的图
+#coord_polar()+
  geom_bar(stat="identity")+theme(legend.position="none")+theme(panel.grid.major = element_blank())+theme_classic()+
- theme( axis.text.y = element_text(size = 18,colour = 'black'),#这是更改了y轴的标识的大小
+ theme( axis.text.y = element_text(size = 18,colour = 'black'),
         axis.text.x = element_text(size = 18,colour = 'black'),
 		axis.title.x = element_text(size = 15,colour = 'black'),
         axis.title.y = element_text(size = 15,colour = 'black'),
@@ -166,6 +166,220 @@ scale_fill_manual(values=forestCol)+coord_flip()+
 ggsave("02.Region_Capsule_Proportion.pdf",device = "pdf",width = 5.5,height =4.5)
 
 ##--- figure 1E
+# here we take the YF-FG84-T-1-0803-0804_add sample as an example in the following code
+# region define---
+barcode_pos_file = '/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/0.Raw_data/YF-FG84-T-1-0803-0804_add/BSTViewer_project/subdata/L5_heAuto/barcodes_pos.tsv.gz'
+png_path = '/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/0.Raw_data/YF-FG84-T-1-0803-0804_add/BSTViewer_project/he_roi_small.png'
+sp_data_FilePath = '/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/Spatial_result/YF-FG84-T-1-0803-0804_add/1.Cluster/level5/'
+# Capsule_Normal_FilePath = '/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/out/YF-FG84-T-1-0803-0804_add/subdata/L5_capsulenormal/' #use pyt result
+# Capsule_Tumor_FilePath = '/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/out/YF-FG84-T-1-0803-0804_add/subdata/L5_capsuletumor/' #use pyt result
+Capsule_Normal_FilePath = '/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/out/YF-FG84-T-1-0803-0804_addme/subdata/L5_capsulenormal/' 
+Capsule_Tumor_FilePath = '/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/out/YF-FG84-T-1-0803-0804_addme/subdata/L5_capsuletumor/' 
+point_size = 0.56
+alpha = 0.6
+out_path = '/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/59.空间转录组定义区域3/YF-FG84-T-1-0803-0804_add/'
+
+.libPaths(c("/xtdisk/tianchx_group/gongjy/0.tools/my_R_packages/R4.3.3_mypkg", .libPaths()))
+library(Seurat)
+library(tidyverse)
+library(ggplot2, lib.loc = "/xtdisk/tianchx_group/gongjy/0.tools/my_R_packages/R4.3.3_mypkg") 
+library(patchwork)
+library(reshape2)
+library(ggdark)
+library(cluster)
+library(png)
+library(ggpubr)
+library(magrittr)
+library(dplyr)
+library(Matrix)
+library(gridExtra)
+library(readr)
+library(config)
+library(spacexr)
+library(future)
+library(future.apply)
+# conda install -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/ r-ggdark
+# conda install -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/ r-config
+# conda install -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/biocon
+# da/ r-spacexr
+
+# matrix transfer
+Rcpp::sourceCpp(code=' 
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::export]]
+IntegerMatrix asMatrix(NumericVector rp, NumericVector cp, NumericVector z, int nrows, int ncols){
+int k = z.size() ;
+IntegerMatrix mat(nrows, ncols);
+for (int i = 0; i < k; i++){ mat(rp[i],cp[i]) = z[i];
+}
+return mat;
+}
+') 
+
+as_matrix <- function(mat){
+	row_pos <- mat@i 
+	col_pos <- findInterval(seq(mat@x)-1,mat@p[-1])
+	tmp <- asMatrix(rp = row_pos, cp = col_pos, z = mat@x, nrows = mat@Dim[1], ncols = mat@Dim[2]) 
+	row.names(tmp) <- mat@Dimnames[[1]]
+	colnames(tmp) <- mat@Dimnames[[2]] 
+	return(tmp)
+}
+
+sp_data<-readRDS(paste0(sp_data_FilePath,"object.rds"))
+Capsule_Normal_spots<-Read10X(Capsule_Normal_FilePath, cell.column = 1) 
+Capsule_Normal_data <- CreateSeuratObject(counts = Capsule_Normal_spots,assay = "Spatial") 
+Capsule_Tumor_spots<-Read10X(Capsule_Tumor_FilePath, cell.column = 1) 
+Capsule_Tumor_data <- CreateSeuratObject(counts = Capsule_Tumor_spots,assay = "Spatial") 
+dim(Capsule_Normal_data)
+
+length(intersect(rownames(Capsule_Tumor_data@meta.data),rownames(Capsule_Normal_data@meta.data)))
+Capsule_Region<-intersect(rownames(Capsule_Tumor_data@meta.data),rownames(Capsule_Normal_data@meta.data))
+sp_data@meta.data$Region<-"Normal"
+
+sp_data@meta.data[Capsule_Region,"Region"]<-"Capsule"
+Tumor_Region<-setdiff(rownames(Capsule_Tumor_data@meta.data),Capsule_Region)
+sp_data@meta.data[Tumor_Region,"Region"]<-"Tumor"
+table(sp_data@meta.data$Region)
+
+sp_data@meta.data$Barcode<-rownames(sp_data@meta.data)
+# read image
+cal_zoom_rate <- function(width, height){
+std_width = 1000
+std_height = std_width / (46 * 31) * (46 * 36 * sqrt(3) / 2.0)
+if (std_width / std_height > width / height){
+scale = width / std_width
+	}else{
+		scale = height / std_height
+	}
+	return(scale)
+}
+png <- readPNG(png_path) 
+
+zoom_scale = cal_zoom_rate(dim(png)[2], dim(png)[1]) 
+barcode_pos <- read.table(gzfile(barcode_pos_file), header = F)
+#barcode_pos <- rename(barcode_pos, Barcode = "V1", pos_w = "V2", pos_h = "V3")
+colnames(barcode_pos)<-c("Barcode", "pos_w", "pos_h")
+barcode_pos <- mutate(barcode_pos, across(c(pos_w, pos_h), ~ .x * zoom_scale))
+
+Region<-sp_data@meta.data[,c("Barcode","Region")]
+barcode_pos_Region <- left_join(Region,barcode_pos,  by = 'Barcode')
+barcode_pos_Region[1:4,]	
+saveRDS(sp_data,paste0(out_path, 'Region.RDS')) 
+
+p = ggplot(barcode_pos_Region, aes(x = pos_w, y = dim(png)[1] - pos_h))+
+		background_image(png)+
+		geom_point(shape = 16, size = point_size, alpha = alpha,  aes(color = Region))+
+		coord_cartesian(xlim = c(0, dim(png)[2]), y = c(0, dim(png)[1]), expand = FALSE)+
+		scale_color_manual(values = c("Capsule"=alpha("#7FABD1", c(1,0.3))[1],
+		"Normal"="#89aa7b","Tumor"="#EC6E66"))+
+		theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank(), axis.title.y=element_blank(),axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+		guides(color = guide_legend(override.aes = list(size = 2.5, alphe = 0.1)))+theme(legend.position = "none")+
+		theme(plot.margin = margin(),axis.ticks.length = unit(0, "pt"))
+ggsave(p, file = paste0(out_path, 'Region_Proportion2.png'), width = dim(png)[2]/200, height = dim(png)[1]/200, dpi = 300) 
+ggsave(p, file = paste0(out_path, 'Region_Proportion2.pdf'), width = dim(png)[2]/200, height = dim(png)[1]/200, dpi = 300) 
+
+# major cell type deconvolution (SPOTlight)---
+# input sample: YF-FG84-T-1-0803-0804_add, YF-T-16-FG73-0710-0711_add, YF-T-17-FG96-20230824-0825_add
+.libPaths(c("/xtdisk/tianchx_group/gongjy/0.tools/my_R_packages/R4.3.3_mypkg", .libPaths()))
+library(ggplot2, lib.loc = "/xtdisk/tianchx_group/gongjy/0.tools/my_R_packages/R4.3.3_mypkg") 
+library(Seurat)
+library(tidyverse)
+library(ggpubr)
+library(patchwork)
+library(reshape2)
+library(ggdark)
+library(cluster)
+library(png)
+library(magrittr)
+library(dplyr)
+library(BiocGenerics)
+library(SPOTlight, lib.loc = "/xtdisk/tianchx_group/gongjy/0.tools/anaconda3/envs/R4.3.3/lib/R/library") # version ‘0.1.7’
+
+point_size = 0.58
+alpha = 0.6
+
+# samples=samples[!samples %in% c("YF-FG84-T-1-0803-0804_add")]
+samples=c("YF-FG84-T-1-0803-0804_add", "YF-T-16-FG73-0710-0711_add", "YF-T-17-FG96-20230824-0825_add")
+for(j in samples){
+    print(paste("start process sample：", j))
+    FilePath = paste0('/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/Spatial_result/', j, '/1.Cluster/level5/')
+    barcode_pos_file = paste0('/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/0.Raw_data/', j, '/BSTViewer_project/subdata/L5_heAuto/barcodes_pos.tsv.gz')
+    if (j %in% c("YF-T-16-FG72-0707-0710", "YF-T-3-FG71-0707-0710"))
+        {png_path = paste0('/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/0.Raw_data/', j, '/BSTViewer_project/he_rou_small.png')} else {
+            png_path = paste0('/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/0.Raw_data/', j, '/BSTViewer_project/he_roi_small.png')}
+    out_path = paste0('/xtdisk/tianchx_group/gongjy/geyuze/19.KIRC_Capsule_ST/Spatial_result/', j, '/2.SPOTlight/level_5/cellproportion3/') ### out
+
+	cal_zoom_rate <- function(width, height){
+	std_width = 1000
+	std_height = std_width / (46 * 31) * (46 * 36 * sqrt(3) / 2.0)
+	if (std_width / std_height > width / height){
+		scale = width / std_width
+		} else{
+		scale = height / std_height
+		}
+		return(scale)
+	}
+    
+	png <- readPNG(png_path) 
+	zoom_scale = cal_zoom_rate(dim(png)[2], dim(png)[1]) 
+	barcode_pos <- read.table(gzfile(barcode_pos_file), header = F)
+	#barcode_pos <- rename(barcode_pos, Barcode = "V1", pos_w = "V2", pos_h = "V3")
+	colnames(barcode_pos)<-c("Barcode", "pos_w", "pos_h")
+	barcode_pos <- mutate(barcode_pos, across(c(pos_w, pos_h), ~ .x * zoom_scale))
+	# decon_mtrx$Barcode<-rownames(decon_mtrx)
+	# decon_mtrx<-decon_mtrx[,c("Barcode",colnames(decon_mtrx)[1:(ncol(decon_mtrx)-1)])]
+	# write.table(decon_mtrx,file = paste0(out_path, 'spotlight_majortype3_0825.csv'),sep=",",row.names=F,quote=F) 
+   
+    decon_mtrx <- read.csv(paste0(out_path, 'spotlight_majortype0825.csv'),
+                        header = TRUE, 
+                        sep = ",",
+                        stringsAsFactors = FALSE)
+
+	barcode_pos_cluster <- left_join(decon_mtrx,barcode_pos,  by = 'Barcode')
+
+    ## P: major cell type show in plot
+    barcode_pos_cluster$`Cell type` <- barcode_pos_cluster$Order1
+    barcode_pos_cluster <- barcode_pos_cluster %>%
+    mutate(`Cell type` = ifelse(`Cell type` == "Neoplastic", "Malignant\ncells", `Cell type`))
+
+    barcode_pos_cluster$`Cell type` <- factor(barcode_pos_cluster$`Cell type`, 
+                                              levels = c(
+                                                        "B.Plasma",
+                                                        "Endothelial",
+                                                        "Epithelial",
+                                                        "Fibroblast",
+                                                        "Mast",
+                                                        "Myeloid",
+                                                        "Malignant\ncells",
+                                                        "NK",
+                                                        "PT",
+                                                        "T"
+                                                        ))
+	barcode_pos_cluster[1:4,]
+	col =   c("#7DB954",
+            "#96C5D7",
+            "#CAA7DD",
+            "#2874A6", # "#4682B4"
+            "#FA8072",
+            "#a15891",
+            "#DD3F4E",
+            "#64864A",
+            "#ff9d5c",
+            "#019477"
+            )
+
+	p = ggplot(barcode_pos_cluster, aes(x = pos_w, y = dim(png)[1] - pos_h))+
+	background_image(png)+
+	geom_point(shape = 16, size = point_size, aes(color = `Cell type`))+
+	coord_cartesian(xlim = c(0, dim(png)[2]), y = c(0, dim(png)[1]), expand = FALSE)+
+	scale_color_manual(values = col)+
+	theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank(), axis.title.y=element_blank(),axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+	guides(color = guide_legend(override.aes = list(size = 2.5, alphe = 0.1)))
+    ggsave(p, file = paste0(out_path, j, "_", 'SPOTlight_major_0828.png'), width=8, height=7, dpi = 300) 
+    ggsave(p, file = paste0(out_path, j, "_",'SPOTlight_major_0828.pdf'), width=8, height=7, dpi = 300) 
+    print(paste("P draw plot ending：", j))
+}	
 
 
 
