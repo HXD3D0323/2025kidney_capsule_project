@@ -41,17 +41,14 @@ if(pValue<0.001){
 		pValue=paste0("P = ",sprintf("%.03f",pValue))
 	}
 	
-#计算高低风险组中突变基因百分率
 df=ddply(df, .(Label2), transform, percent = Freq/sum(Freq) * 100)
-
 col = RColorBrewer::brewer.pal(n = 11, name = 'Paired')
 #names(col) = c('Frame_Shift_Del','Missense_Cell', 'Nonsense_Cell', 'Frame_Shift_Ins','In_Frame_Ins', 'Splice_Site', 'In_Frame_Del','Nonstop_Cell','Translation_Start_Site','Multi_Hit')
 	
-#百分比位置
 df=ddply(df, .(Label2), transform, pos = (cumsum(Freq) - 0.5 * Freq))
 df$label2=paste0(sprintf("%.0f", df$percent), "%")
 	
-#绘制图形
+# do plot
 p=ggplot(df, aes(x = factor(Label2), y = percent, fill = CellMajor)) +
     geom_bar(position = position_stack(), stat = "identity", width = 0.7) +
 	scale_fill_manual(values=c("T"="#E95D53","NK"="#F9F871","B/Plasma"="#ECB37B",
@@ -67,3 +64,109 @@ p=ggplot(df, aes(x = factor(Label2), y = percent, fill = CellMajor)) +
 pdf(file=paste0("CellMajor_Ratio",".pdf"), width=6, height=4)
 print(p)
 dev.off()
+
+
+##--- figure S1B
+options("repos"= c(CRAN="https://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
+options(BioC_mirror="http://mirrors.tuna.tsinghua.edu.cn/bioconductor/")
+#install.packages("epitools")
+library(epitools)
+library(ComplexHeatmap)
+library(circlize)
+Sys.setenv(LANGUAGE = "en") 
+options(stringsAsFactors = FALSE) 
+setwd("F:/23.肾包膜项目/整理所有的图")
+scRNA_harmony <- readRDS("F:/23.肾包膜项目/11.总结细胞亚类/Total_Sub_combined.rds")
+table(scRNA_harmony@meta.data$CellMajor)
+cells<-c("B/Plasma","Endothelial","Epithelial","Fibroblast","Mast","Myeloid","NK","PT","T")
+scRNA_harmony<-subset(scRNA_harmony,CellMajor %in% cells)
+observe.data<-as.matrix(as.data.frame.matrix(table(scRNA_harmony@meta.data$CellMajor, scRNA_harmony@meta.data$Region)))
+expected.data <- expected(observe.data)
+plot.data <- observe.data/expected.data
+#plot.data[plot.data>3] = 3
+
+col.order <- c("Cancer", "Capsule") 
+plot.data <- plot.data[, col.order] 
+#colnames(plot.data)<-c("T","C")
+
+# filter: odd ratio > 1
+capsule <- plot.data[plot.data[, "Capsule"] > 1, ]
+capsule <- capsule[order(capsule[, "Capsule"]), ]
+cancer <- plot.data[plot.data[, "Cancer"] > 1, ]
+cancer <- cancer[order(cancer[, "Cancer"]), ]
+
+plot.data <- rbind(capsule, cancer)
+colnames(plot.data)<-c("Tumor","Capsule")
+#plot.data <- plot.data[order(apply(plot.data, 1, which.max), decreasing = T), ] 
+#rownames(plot.data) <- substr(rownames(plot.data), 5, 6)
+ECM_label<-plot.data
+
+cols <- setNames(object = c("#FEE6CE", "#FDC08C", "#F5904B", "#E6550D"),
+                 nm = c("1", "1.5", "3", ">3"))
+cell_fun <- function(ECM_label,  
+                     darkcol = "black", lightcol = "white", fontsize  = 8){
+    function(j, i, x, y, width, height, fill){
+        if(ECM_label[i,j] < as.numeric(names(cols)[1])){
+            grid.text("\u00B1", x, y, 
+                      gp = gpar(fontsize = 15, col  = darkcol))
+        }else{
+				if(ECM_label[i,j] < as.numeric(names(cols)[2])){
+					grid.text("+", x, y, 
+                    gp = gpar(fontsize = 15, col  = darkcol))
+				}else{
+					if(ECM_label[i,j] < as.numeric(names(cols)[3])){
+						grid.text("++", x, y, 
+						gp = gpar(fontsize = 15, col  = darkcol))
+					}else{
+						if(ECM_label[i,j] < as.numeric(names(cols)[4])){
+							grid.text("+++", x, y, 
+							gp = gpar(fontsize = 15, col  = darkcol))
+						}else{
+								grid.text("++++", x, y, 
+								gp = gpar(fontsize = fontsize, col  = darkcol))
+						}
+					}
+				}
+			}
+		}
+    }
+
+#heatmap.BlWtRd <- c("#FEE6CE", "#FDC08C", "#F5904B", "#E6550D")
+library(ComplexHeatmap)
+library(circlize)
+heatmap.BlWtRd <- c("#317cb7", "white", "#b72230")
+col_expr <- colorRamp2(c(min(na.omit(plot.data)),1,max(na.omit(plot.data))), heatmap.BlWtRd)
+
+# do plot
+hm = Heatmap(plot.data, cell_fun = cell_fun(ECM_label),
+			 col = col_expr,rect_gp = gpar(col = "grey80"),
+             cluster_rows = F, cluster_columns = F,column_names_rot = 0, #肿瘤类型呈45度
+             width = unit(4, "cm"), height = unit(7.5, "cm"), name  = "R[o/e]", # 热图颜色图例的名称
+             show_heatmap_legend = T)
+#lgd = Legend(labels = names(cols), title = expression(R[o/e]), legend_gp = gpar(fill = cols))
+draw(hm)
+
+pdf("04.Total_RatioHeatmap.pdf", width = 4, height = 4)
+#draw(hm, annotation_legend_list = lgd)
+draw(hm)
+invisible(dev.off())
+
+
+##--- figure S1C
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
