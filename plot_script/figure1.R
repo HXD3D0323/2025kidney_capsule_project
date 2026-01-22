@@ -545,10 +545,134 @@ ggsave("sumcellratio_boxplot0824.png", height = 3.5, width = 9, dpi = 300)
 ggsave('sumcellratio_boxplot0824.pdf', height = 3.5, width = 9, dpi = 300) 
 
 
+##--- figure 1H
+# bulk proteomics pathway analysis
+# tumor group GO analysis---
+options("repos"= c(CRAN="https://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
+options(BioC_mirror="http://mirrors.tuna.tsinghua.edu.cn/bioconductor/")
+#install.packages("msigdbr")
+#install.packages("shadowtext")
+#install.packages("ggstance")
+library(clusterProfiler)
+library(msigdbr)
+library(DOSE)
+library(enrichplot)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+Sys.setenv(LANGUAGE = "en") 
+options(stringsAsFactors = FALSE)
+setwd("F:/23.肾包膜项目/109.全蛋白质谱的差异分析/11.GO与KEGG功能富集分析的barplot")
+
+data<-read.table("data.txt",header=T,check.names=F,sep="\t")
+#data_plot2<-subset(data_plot2,ID %in% pathways)
+data[1:4,]
+data_plot2<-subset(data,Type %in% c("Tumor"))
+data_plot2<-data_plot2[,c("Description","p.adjust")]
+colnames(data_plot2)<-c("ID","pvalue")
+
+data_plot2$ID <- factor(data_plot2$ID, levels = data_plot2$ID)
+max(data_plot2$pvalue)
+min(data_plot2$pvalue)
+#data_plot2$label<-"Lump"
+data_plot2$label<-c("Yes","Yes","Yes","Yes","Yes")
+data_plot2 <- data_plot2[order(data_plot2[, "pvalue"]), ]
+data_plot2
+data_plot2$ID <- factor(data_plot2$ID, levels = rev(data_plot2$ID))
+data_plot2$pvalue<-as.numeric(data_plot2$pvalue)
+max(-log2(data_plot2$pvalue))
+
+data_plot2$P_used<-(-log2(data_plot2$pvalue))
+
+ggplot(data_plot2, aes(x = ID, y = P_used, fill = label)) + 
+		coord_flip() + 
+        #geom_col() +
+		geom_col(width = 0.8) +  # 调整条形图宽度
+		#scale_fill_manual(values = c(alpha("black", c(1,0.3))[1],alpha("#87CEEB", c(1,0.3))[1]))+
+		scale_fill_manual(values = c(alpha("#87CEEB", c(1,0.3))[1]))+
+        scale_y_continuous(breaks=seq(0,9,3),limits = c(0,9)) + #两侧留空
+        theme_classic() +
+		geom_text(data = data_plot2,
+            aes(x=ID, y= .1, label= paste0(" ", ID), color = label),#bar跟坐标轴间留出间隙
+            size = 6, #字的大小
+            hjust = "inward" ) +  #字的对齐方式
+		scale_color_manual(values = c("black"))+
+		xlab("")+
+        ylab("-Log2 adjP value") + 
+		geom_hline(yintercept = -log2(0.05), linetype = "dashed", color = "grey")+
+        theme(axis.title.x = element_text(size = 15)) + 
+		theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+        theme(axis.text.x = element_text(size = 15))+theme(legend.position = 'none')+
+		theme(axis.line = element_line(size = 0.8)) # 设置坐标轴的线宽
+		
+    #labs(title = "KEGG: Lump malignant cell vs \nno invaded malignant cell")+  # 添加标题
+    #theme(plot.title = element_text(size = 20))  # 调整标题字体大小
+ggsave("GO_proteomic_Tumor.pdf", width = 4.8, height = 4)
+
+# capsule group GO analysis---
+options("repos"= c(CRAN="https://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
+options(BioC_mirror="http://mirrors.tuna.tsinghua.edu.cn/bioconductor/")
+#install.packages("msigdbr")
+#install.packages("shadowtext")
+#install.packages("ggstance")
+library(clusterProfiler)
+library(msigdbr)
+library(DOSE)
+library(enrichplot)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+Sys.setenv(LANGUAGE = "en") #显示英文报错信息
+options(stringsAsFactors = FALSE) #禁止chr转成factor
+setwd("F:/23.肾包膜项目/109.全蛋白质谱的差异分析/11.GO与KEGG功能富集分析的barplot")
+
+data<-read.table("data.txt",header=T,check.names=F,sep="\t")
+#data_plot2<-subset(data_plot2,ID %in% pathways)
+data[1:4,]
+data_plot2<-subset(data,Type %in% c("Capsule"))
+data_plot2<-data_plot2[,c("Description","p.adjust")]
+colnames(data_plot2)<-c("ID","pvalue")
+
+data_plot2$ID <- factor(data_plot2$ID, levels = data_plot2$ID)
+max(data_plot2$pvalue)
+min(data_plot2$pvalue)
+#data_plot2$label<-"Lump"
+data_plot2$label<-c("Yes","Yes","Yes","Yes","Yes")
+data_plot2 <- data_plot2[order(data_plot2[, "pvalue"]), ]
+data_plot2
+data_plot2$ID <- factor(data_plot2$ID, levels = rev(data_plot2$ID))
+data_plot2$pvalue<-as.numeric(data_plot2$pvalue)
+max(-log2(data_plot2$pvalue))
+
+data_plot2$P_used<-(-log2(data_plot2$pvalue))
+
+ggplot(data_plot2, aes(x = ID, y = P_used, fill = label)) + 
+		coord_flip() + 
+        #geom_col() +
+		geom_col(width = 0.8) +  # 调整条形图宽度
+		#scale_fill_manual(values = c(alpha("black", c(1,0.3))[1],alpha("#87CEEB", c(1,0.3))[1]))+
+		scale_fill_manual(values = c(alpha("#87CEEB", c(1,0.3))[1]))+
+        scale_y_continuous(breaks=seq(0,32,8),limits = c(0,32)) + #两侧留空
+        theme_classic() +
+		geom_text(data = data_plot2,
+            aes(x=ID, y= .1, label= paste0(" ", ID), color = label),#bar跟坐标轴间留出间隙
+            size = 6, #字的大小
+            hjust = "inward" ) +  #字的对齐方式
+		scale_color_manual(values = c("black"))+
+		xlab("")+
+        ylab("-Log2 adjP value") + 
+		geom_hline(yintercept = -log2(0.05), linetype = "dashed", color = "grey")+
+        theme(axis.title.x = element_text(size = 15)) + 
+		theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+        theme(axis.text.x = element_text(size = 15))+theme(legend.position = 'none')+
+		theme(axis.line = element_line(size = 0.8)) # 设置坐标轴的线宽
+		
+    #labs(title = "KEGG: Lump malignant cell vs \nno invaded malignant cell")+  # 添加标题
+    #theme(plot.title = element_text(size = 20))  # 调整标题字体大小
+ggsave("GO_proteomic_Capsule.pdf", width = 4.8, height = 4)
 
 
-
-
+##--- figure 1I
 
 
 
